@@ -12,6 +12,7 @@ from pascal_voc_io import XML_EXT
 import os.path
 import sys
 import math
+import numpy as np
 
 class LabelFileError(Exception):
     pass
@@ -63,7 +64,44 @@ class LabelFile(object):
                     robndbox[2],robndbox[3],robndbox[4],label,difficult)
 
         writer.save(targetFile=filename)
+
+        # * add txt output
+        filename_txt = os.path.join(os.path.dirname(filename), imgFileNameWithoutExt + '.txt')
+        with open(filename_txt, 'w') as f:
+            for shape in shapes:
+                points = shape['points']
+                label = shape['label']
+                # Determine by flag if the coordinates are in order and in sequence.
+                flag = True if ('_') in label else False
+                if flag:
+                    points = self.order_points(points, int(label.split('_')[1]))
+                points = [int(p) for point in points for p in point]
+                info = ''
+                for point in points:
+                    info += str(point) + ' '
+                info += (label if not flag else label.split('_')[0]) + ' ' + ('1' if shape['difficult'] else '0') + '\n'
+                f.write(info)
+        
+        # * add labelme json output
+
         return
+
+    
+    def order_points(self, pts, idx):
+        pts = np.asarray(pts)
+        #  根据x坐标对进行从小到大的排序
+        sort_x = pts[np.argsort(pts[:, 0]), :]
+        #  根据点x的坐标排序分别获取所有点中，位于最左侧和最右侧的点
+        Left = sort_x[:2, :]
+        Right = sort_x[2:, :]
+        # 根据y坐标对左侧的坐标点进行从小到大排序，这样就能够获得左下角坐标点与左上角坐标点
+        Left = Left[np.argsort(Left[:, 1])[::-1], :]
+        # 根据y坐标对右侧的坐标点进行从小到大排序，这样就能够获得右上角坐标点与右下角坐标点
+        Right = Right[np.argsort(Right[:, 1]), :]
+        res = np.concatenate((Left, Right), axis=0)
+        # 按选取的初始点进行拼接
+        return np.concatenate((res[idx:], res[:idx]), axis=0).tolist() if idx < 4 else res.tolist()
+
 
     def toggleVerify(self):
         self.verified = not self.verified
