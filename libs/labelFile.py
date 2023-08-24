@@ -13,6 +13,7 @@ import os.path
 import sys
 import math
 import numpy as np
+import json
 
 class LabelFileError(Exception):
     pass
@@ -75,7 +76,7 @@ class LabelFile(object):
                 flag = True if ('_') in label else False
                 if flag:
                     points = self.order_points(points, int(label.split('_')[1]))
-                points = [int(p) for point in points for p in point]
+                points = [p for point in points for p in point]
                 info = ''
                 for point in points:
                     info += str(point) + ' '
@@ -83,7 +84,34 @@ class LabelFile(object):
                 f.write(info)
         
         # * add labelme json output
-
+        filename_json = os.path.join(os.path.dirname(filename), imgFileNameWithoutExt + '.json')
+        with open(filename_json, 'w') as f:
+            json_data = {
+                "version": "by rolabeimg convert",
+                "flags": {},
+                "imagePath": imgFileName,
+                "imageHeight": imageShape[0],
+                "imageWidth": imageShape[1]
+            }
+            items = []
+            for shape in shapes:
+                item = {      
+                    "group_id": None,
+                    "description": None,
+                    "shape_type": "polygon",
+                    "flags": {}
+                }
+                points = shape['points']
+                label = shape['label']
+                # Determine by flag if the coordinates are in order and in sequence.
+                flag = True if ('_') in label else False
+                if flag:
+                    points = self.order_points(points, int(label.split('_')[1]))
+                item['label'] = label if not flag else label.split('_')[0]
+                item['points'] = points
+                items.append(item)
+            json_data['shapes'] = items
+            json.dump(json_data, f)
         return
 
     
@@ -99,7 +127,7 @@ class LabelFile(object):
         # 根据y坐标对右侧的坐标点进行从小到大排序，这样就能够获得右上角坐标点与右下角坐标点
         Right = Right[np.argsort(Right[:, 1]), :]
         res = np.concatenate((Left, Right), axis=0)
-        # 按选取的初始点进行拼接
+        # 按选取的初始点进行拼接, 如果选取点大于四则直接忽略
         return np.concatenate((res[idx:], res[:idx]), axis=0).tolist() if idx < 4 else res.tolist()
 
 
