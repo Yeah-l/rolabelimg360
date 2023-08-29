@@ -7,3 +7,6 @@ labelImg.py
 roLabelImg.py.bak
 CONTRIBUTING.rst
 LICENSE
+dist
+build
+*.spec

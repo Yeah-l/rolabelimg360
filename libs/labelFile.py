@@ -42,6 +42,7 @@ class LabelFile(object):
         image.load(imagePath)
         imageShape = [image.height(), image.width(),
                       1 if image.isGrayscale() else 3]
+        # * xml output
         writer = PascalVocWriter(imgFolderName, imgFileNameWithoutExt,
                                  imageShape, localImgPath=imagePath)
         writer.verified = self.verified
@@ -114,15 +115,17 @@ class LabelFile(object):
             json.dump(json_data, f)
         return
 
-    
+    # 返回格式：(左下， 左上， 右下， 右上)
+    # 先根据x返回左边最小的两个点，再根据y返回上下关系
     def order_points(self, pts, idx):
         pts = np.asarray(pts)
-        #  根据x坐标对进行从小到大的排序
-        sort_x = pts[np.argsort(pts[:, 0]), :]
+        #  根据x坐标对进行从小到大的排序-----》如果第2个点和第3个点x坐标相同该怎么办（bug）
+        sort_x = pts[np.lexsort((-pts[:, 1], pts[:, 0])), :]    # 先按x从小到大进行排序，如果x相同则按y从大到小进行排序（前面-号进行体现）
+        # sort_x = pts[np.argsort(pts[:, 0]), :]
         #  根据点x的坐标排序分别获取所有点中，位于最左侧和最右侧的点
         Left = sort_x[:2, :]
         Right = sort_x[2:, :]
-        # 根据y坐标对左侧的坐标点进行从小到大排序，这样就能够获得左下角坐标点与左上角坐标点
+        # 根据y坐标对左侧的坐标点进行从小到大排序，这样就能够获得左下角坐标点与左上角坐标点(左下角坐标为y较大的，左上角坐标为y较小的)
         Left = Left[np.argsort(Left[:, 1])[::-1], :]
         # 根据y坐标对右侧的坐标点进行从小到大排序，这样就能够获得右上角坐标点与右下角坐标点
         Right = Right[np.argsort(Right[:, 1]), :]
