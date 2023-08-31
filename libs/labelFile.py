@@ -76,7 +76,8 @@ class LabelFile(object):
                 # Determine by flag if the coordinates are in order and in sequence.
                 flag = True if ('_') in label else False
                 if flag:
-                    points = self.order_points(points, int(label.split('_')[1]))
+                    direction = True if (len(label.split('_')) > 2 and label.split('_')[2] == "1") else False
+                    points = self.order_points(points, int(label.split('_')[1]), direction)
                 points = [p for point in points for p in point]
                 info = ''
                 for point in points:
@@ -107,7 +108,9 @@ class LabelFile(object):
                 # Determine by flag if the coordinates are in order and in sequence.
                 flag = True if ('_') in label else False
                 if flag:
-                    points = self.order_points(points, int(label.split('_')[1]))
+                    # 确定方向是否进行反转
+                    direction = True if (len(label.split('_')) > 2 and label.split('_')[2] == '1') else False
+                    points = self.order_points(points, int(label.split('_')[1]), direction)
                 item['label'] = label if not flag else label.split('_')[0]
                 item['points'] = points
                 items.append(item)
@@ -115,9 +118,9 @@ class LabelFile(object):
             json.dump(json_data, f)
         return
 
-    # 返回格式：(左下， 左上， 右下， 右上)
+    # 返回格式：(左下， 左上， 右上， 右下)
     # 先根据x返回左边最小的两个点，再根据y返回上下关系
-    def order_points(self, pts, idx):
+    def order_points(self, pts, idx, direction):
         pts = np.asarray(pts)
         #  根据x坐标对进行从小到大的排序-----》如果第2个点和第3个点x坐标相同该怎么办（bug）
         sort_x = pts[np.lexsort((-pts[:, 1], pts[:, 0])), :]    # 先按x从小到大进行排序，如果x相同则按y从大到小进行排序（前面-号进行体现）
@@ -131,7 +134,9 @@ class LabelFile(object):
         Right = Right[np.argsort(Right[:, 1]), :]
         res = np.concatenate((Left, Right), axis=0)
         # 按选取的初始点进行拼接, 如果选取点大于四则直接忽略
-        return np.concatenate((res[idx:], res[:idx]), axis=0).tolist() if idx < 4 else res.tolist()
+        res = np.concatenate((res[idx:], res[:idx]), axis=0) if idx < 4 else res
+        # 是否进行反转顺序
+        return np.concatenate((res[0][None, :], res[-1:0:-1]), axis=0).tolist() if direction else res.tolist()
 
 
     def toggleVerify(self):
